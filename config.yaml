@@ -1,0 +1,13 @@
+arxiv:
+  max_results_per_query: 100
+  delay_seconds: 3.0
+  queries:
+    - 'cat:math-ph AND all:"Calogero-Moser"'
+    - 'cat:nlin.SI AND all:"Calogero-Moser"'
+    - 'cat:math-ph AND all:"integrable system" AND all:"many-body"'
+    - 'cat:math-ph AND all:"Lax Pair" AND all:"integrable"'
+    - 'cat:math-ph AND all:"Dunkl operator"'
+
+paths:
+  raw_sources: data/arxiv_raw
+  metadata: data/metadata
