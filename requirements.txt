@@ -1,1 +1,5 @@
 arxiv==2.1.3
+pyyaml
+pylatexenc
+chromadb
+numpy
