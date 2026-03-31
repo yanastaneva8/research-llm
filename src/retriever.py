@@ -1,0 +1,71 @@
+import chromadb                                                                                                                                                                                                     
+                                                                                                                                                                                                                    
+from src.config import CHROMADB_DIR                                                                                                                                                                                 
+from src.ollama_client import get_embedding                                                                                                                                                                         
+                                                                                                                                                                                                                    
+                                                                                                                                                                                                                    
+TOP_K = 4                                                                                                                                                                                                           
+MAX_CONTEXT_CHARS = 3000                                                                                                                                                                                            
+MAX_STYLE_CHARS = 1500                                                                                                                                                                                              
+                                                                                                                                                                                                                    
+                                                                                                                                                                                                                    
+def get_collection():                                                                                                                                                                                               
+    client = chromadb.PersistentClient(path=str(CHROMADB_DIR))
+    return client.get_collection("integrable_systems")                                                                                                                                                              
+                                                                                                                                                                                                                    
+                                                                                                                                                                                                                    
+def retrieve(query, top_k=TOP_K, where_filter=None):                                                                                                                                                                
+    """Retrieve most relevant chunks for a query."""                                                                                                                                                                
+    collection = get_collection()                                                                                                                                                                                   
+    query_embedding = get_embedding(query)                                                                                                                                                                          
+                                                                                                                                                                                                                    
+    kwargs = {                                                                                                                                                                                                      
+        "query_embeddings": [query_embedding],                                                                                                                                                                      
+        "n_results": top_k,                                                                                                                                                                                         
+        "include": ["documents", "metadatas", "distances"],                                                                                                                                                         
+    }                                                                                                                                                                                                               
+    if where_filter:                                                                                                                                                                                                
+        kwargs["where"] = where_filter                                                                                                                                                                              
+                                                                                                                                                                                                                    
+    results = collection.query(**kwargs)                                                                                                                                                                            
+                                                                                                                                                                                                                    
+    chunks = []                                                                                                                                                                                                     
+    for i in range(len(results["ids"][0])):
+        chunks.append({                                                                                                                                                                                             
+            "id": results["ids"][0][i],                                                                                                                                                                             
+            "content": results["documents"][0][i],                                                                                                                                                                  
+            "metadata": results["metadatas"][0][i],                                                                                                                                                                 
+            "distance": results["distances"][0][i],                                                                                                                                                                 
+        })                                                                                                                                                                                                          
+                                                                                                                                                                                                                    
+    return chunks                                                                                                                                                                                                   
+                                                                                                                                                                                                                    
+                                                                                                                                                                                                                    
+def get_style_examples():
+    """Retrieve all chunks from the user's style papers."""                                                                                                                                                         
+    collection = get_collection()                                                                                                                                                                                   
+    results = collection.get(                                                                                                                                                                                       
+        where={"is_style_paper": True},                                                                                                                                                                             
+        include=["documents"],                                                                                                                                                                                      
+    )                                                                                                                                                                                                               
+                                                                                                                                                                                                                    
+    if not results["ids"]:                                                                                                                                                                                          
+        return ""
+                                                                                                                                                                                                                    
+    style_text = ""                                                                                                                                                                                                 
+    for document in results["documents"]:                                                                                                                                                                           
+        if len(style_text) + len(document) > MAX_STYLE_CHARS:                                                                                                                                                       
+            break                                                                                                                                                                                                   
+        style_text += document + "\n\n"                                                                                                                                                                             
+                                                                                                                                                                                                                    
+    return style_text.strip()                                                                                                                                                                                       
+                                                                                                                                                                                                                    
+                                                                                                                                                                                                                    
+def build_source_context(chunks):
+    """Format retrieved chunks into a context string for the LLM."""                                                                                                                                                
+    context = "\n\n".join(                                                                                                                                                                                          
+        f"[Source: {chunk['metadata'].get('title', 'unknown')}]\n{chunk['content']}"                                                                                                                                
+        for chunk in chunks                                                                                                                                                                                         
+    )                                                                                                                                                                                                               
+    return context[:MAX_CONTEXT_CHARS]                                                                                                                                                                              
+                                                                                                                                                                                                                    
